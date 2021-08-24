@@ -1,0 +1,440 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	
+
+
+	
+	<flow name="post-gotowebinar-salesforce-integration-flow" doc:id="fd691913-18a7-4f20-a1a9-b905ab2ff1b0" >
+		<!-- <flow-ref doc:name="refresh-token-apiFlow" doc:id="baa960c5-b29e-42b5-9c0f-30e717d78417" name="refresh-token-apiFlow" /> -->
+		<scheduler doc:name="Scheduler" doc:id="45268261-a903-4cc0-9f88-22fcb4919c59" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="5" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Start Logger" doc:id="5868e4b8-ae56-4ae3-9239-5127add23212" message='#["Entered in post-gotowebinar-salesforce-integration-flow"]'/>
+		<flow-ref doc:name="post-access-token-flow" doc:id="360ed9ab-4168-4c3e-89e4-b585e5317192" name="post-access-token-flow"/>
+		
+		<flow-ref doc:name="get-account-session-details-flow" doc:id="3c06878d-9ef5-45ca-8b61-a88c4697c48c" name="get-account-session-details-flow"/>
+		<logger level="INFO" doc:name="Payload Response From GoToWebinar" doc:id="1ddd54b6-0e03-42b1-95c2-4b0f03d1eac3" message="#[payload]"/>
+		<flow-ref doc:name="post-sfdc-system-api-flow" doc:id="2594580b-c366-46a7-a4e2-1b0a7186877b" name="post-sfdc-system-api-flow"/>
+		<logger level="INFO" doc:name="End Logger" doc:id="f1d54537-31ca-4e34-96f2-0327e97ce0f3" message='#["Exit from post-gotowebinar-salesforce-integration-flow"]'/>
+		
+</flow>
+	<flow name="get-account-session-details-flow" doc:id="5c139daa-4021-4a23-8df7-b5e1882441e6" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="f8608b3a-8daa-4a1d-9d76-5d19aeefc6e7" message='#["Entered in get-account-session-details-flow "]'/>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="a3ba2ad0-2815-4cc5-9774-131b800bd3f3" >
+			<http:request method="GET" doc:name="Webinar Details By Account" doc:id="8ac05770-e5cf-45f5-8b70-fcd53fab3fb9" config-ref="HTTP-Request-Configuration-GotoWebinar-Api" path="#[&quot;/G2W/rest/v2/accounts/&quot; ++ Mule::p('keys.account_key') ++ &quot;/webinars&quot;]" target="webinarByAccount">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    "fromTime" : (now()  - |PT10H|)   as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"} as DateTime,
+    "toTime": (now()  + |PT14H|) as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"} as DateTime
+}]]]></http:query-params>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="DW Preparing Session,Organizer,Webinar Keys" doc:id="de1e67e3-26c4-4fd4-8fcc-59064fe82371">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable resource="webinarKeys.dwl" variableName="webinarKeys" />
+				<ee:set-variable variableName="sessionKey" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+				<ee:set-variable resource="organizerKeyByAccount.dwl" variableName="organizerKeyByAccount" />
+				</ee:variables>
+			</ee:transform>
+		<ee:transform doc:name="DW Preparing Empty Responses" doc:id="94465848-2a54-481c-87c3-93d9fc0d24f6" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="webinar_survey_responses" ><![CDATA[%dw 2.0
+output application/java
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="getRegistrant_Payload" ><![CDATA[%dw 2.0
+output application/json
+---
+{}]]></ee:set-variable>
+				<ee:set-variable variableName="polls_responses" ><![CDATA[%dw 2.0
+output application/java
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="current_attendee_Main_Payload" ><![CDATA[%dw 2.0
+output application/java
+---
+[]]]></ee:set-variable>
+				<ee:set-variable variableName="surveyVariable1" ><![CDATA[%dw 2.0
+output application/java
+---
+[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<foreach doc:name="For Each Webinar Keys" doc:id="4e168a42-c991-4a30-90db-3086490f67d9" collection="#[vars.webinarKeys]">
+			<set-variable value="#[payload]" doc:name="current_Webinar_Key" doc:id="468108af-1d73-4bbb-bc9e-a0c6f328f4a8" variableName="current_Webinar_Key"/>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="0d5fd131-a8e6-4419-90bb-f6e97dffc8f4" >
+				<http:request method="GET" doc:name="Webinar Sessions Details" doc:id="a1cba5c6-75c7-4d69-84e7-0a29ac391f42" config-ref="HTTP-Request-Configuration-GotoWebinar-Api" path='#["/G2W/rest/v2/organizers/" ++ vars.organizerKeyByAccount ++ "/webinars/" ++ payload ++ "/sessions"]' target="webinarSessions">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+		</http:request>
+			</until-successful>
+			<flow-ref doc:name="get-session-attendees-details-flow" doc:id="6bd48faa-f911-42e7-acc0-02f9234def9c" name="get-session-attendees-details-flow"/>
+			<logger level="INFO" doc:name="End Logger" doc:id="3b15c7aa-d359-4869-9345-666cf8aa66c3" message='#["Exit from get-account-session-details-flow"]' />
+			
+		</foreach>
+		<!-- <foreach doc:name="For Each" doc:id="4e362177-c31c-480c-99f6-62cc8e65c7ae" collection='#[payload]'>
+			<ee:transform doc:name="session_Key" doc:id="e8264b7b-9a91-42ef-8f36-405c90167dd1">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="sessionKey"><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+if (vars.webinarSessions."_embedded".sessionInfoResources.sessionKey != null) [vars.webinarSessions."_embedded".sessionInfoResources.sessionKey] ++ vars.sessionKey
+else []]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+			<ee:transform doc:name="Transform Message" doc:id="ef488ae0-94aa-4ff5-b395-c05d0ba62f60">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+flatten(vars.sessionKey)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		
+</foreach> -->
+	</flow>
+	<flow name="get-session-attendees-details-flow" doc:id="5c5008fe-2402-4779-b1fd-db8454c24025" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="5c25e745-d4b0-4866-9562-04c5511b74c3" message='#["Entered in get-session-attendees-details-flow"]'/>
+		<ee:transform doc:name="DW Preparing Session Keys" doc:id="70eef2b6-dbdd-40d0-b890-e86808cd8036">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="skey"><![CDATA[%dw 2.0
+output application/json
+---
+vars.webinarSessions."_embedded".sessionInfoResources.sessionKey[0]]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		<choice doc:name="CHECK IF skey is NOT NULL" doc:id="919a7897-c9fd-40be-a132-e8b6192d10ac" >
+				<when expression="#[vars.skey != null]">
+				<until-successful maxRetries="5" doc:name="Until Successful" doc:id="e05737cd-df88-4f1f-8e0b-9924a65ea69b" >
+					<http:request method="GET" doc:name="Session Attendees Details" doc:id="584d4a58-f893-4d7d-a6a4-c518a720bc32" path='#["/G2W/rest/v2/organizers/" ++ vars.organizerKeyByAccount ++ "/webinars/" ++ payload ++ "/sessions/" ++ vars.skey ++ "/attendees"]' target="attendees" config-ref="HTTP-Request-Configuration-GotoWebinar-Api">
+			<ee:repeatable-file-store-stream bufferUnit="MB" />
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+		</http:request>
+				</until-successful>
+				<foreach doc:name="For Each Session Attendee" doc:id="d1e1296c-344a-407d-9880-290e66f4ab52" collection="#[vars.attendees.registrantKey]">
+						<set-variable value="#[vars.attendees ++ vars.current_attendee_Main_Payload]" doc:name="current_attendee_Main_Payload" doc:id="8fa54635-38a1-4459-a7cc-7a1cb528ee94" variableName="current_attendee_Main_Payload"/>
+					<flow-ref doc:name="get-attendees-survey-flow" doc:id="0219c7c3-f87a-497c-bf35-765263d2f262" name="get-attendees-survey-flow" />
+					
+</foreach>
+				
+</when>
+			<otherwise >
+					<logger level="INFO" doc:name="No Sessions Exist" doc:id="515cb124-84dd-47dd-a723-9c43c90b5c4a" message='#["No session for now."]'/>
+				</otherwise>
+			</choice>
+			<logger level="INFO" doc:name="End Logger" doc:id="9db6ce2c-31ea-4090-8842-363878c9c3cb" message='#["Exit from get-session-attendees-details-flow"]' />
+	</flow>
+	<flow name="post-access-token-flow" doc:id="573cb5a4-b90e-4165-9101-01ea81f6049e" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="e9b571bb-4709-43fd-91b4-368703f72042" message='#["Entered in post-access-token-flow"]'/>
+		<set-variable value="#[Mule::p('requesttoken.refresh_token')]" doc:name="Refresh_Token" doc:id="74c6fd34-670d-4e22-8c5f-e316a7e14730" variableName="Refresh_Token"/>
+		<os:retrieve doc:name="Retrieve Access Token" doc:id="b740882d-2c37-44a8-bcc5-1986ece60347" key="access_TokenStore" objectStore="Object-Store-for-Access-Token" target="access_TokenStore">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="Retrieve Refresh Token" doc:id="7121f8eb-da24-4139-988a-fd28e18db4ed" key="Refresh_Token" target="Refresh_TokenStore" objectStore="Object-Store-for-Refresh-Token">
+			<os:default-value ><![CDATA[#[Mule::p('requesttoken.refresh_token')]]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="requestRefreshTokenBody" doc:id="d7a19a83-4978-4326-a3fa-c356f9fc6b79">
+			<ee:message>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="requestRefreshTokenBody" ><![CDATA[%dw 2.0
+output application/json
+---
+if (vars.Refresh_TokenStore != Mule::p('requesttoken.refresh_token')) vars.Refresh_TokenStore 
+else Mule::p('requesttoken.refresh_token')
+	]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="CHECK IF Access Token is NOT Expired." doc:id="1ee82930-66a5-4ca0-bb1b-fe7dc6f73053" >
+			<when expression='#[vars.access_TokenStore != "0"]'>
+				<logger level="INFO" doc:name="LOG Access token available" doc:id="c79b722f-effb-4eb6-9fe6-681255863f13" message='#["Access token available"]'/>
+			</when>
+			<otherwise >
+				<until-successful maxRetries="5" doc:name="Until Successful" doc:id="f99f2c7a-b729-4b03-8a74-31d3dc12a2d9" >
+					<http:request method="POST" doc:name="Get Access Token From GoToWebinar" doc:id="847c04cc-3ff0-4719-98ea-a4767b7c0d89" config-ref="HTTP-Request-Configuration-GotoWebinar-Api" path="${requesttoken.config.path}">
+			<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+---
+{
+    "grant_type" : Mule::p('requesttoken.grant_type'),
+    "client_id" : Mule::p('requesttoken.client_id'),
+    "client_secret" : Mule::p('requesttoken.client_secret'),
+    "refresh_token" : vars.requestRefreshTokenBody
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Basic OWU4NmU0NzktMjA0MC00NDZmLThjMGUtMmE4NTIwY2EwZTNiOjJwelZ3aks5ODN2U043RWVOUnRDOEt4Ug==",
+	"Accept" : "application/json",
+	"Content-Type" : "application/x-www-form-urlencoded"
+}]]]></http:headers>
+		</http:request>
+				</until-successful>
+				<os:store doc:name="Store Access Token" doc:id="204f14c0-9db7-4c8c-9fbf-f44f09332d13" key="access_TokenStore" objectStore="Object-Store-for-Access-Token">
+			<os:value><![CDATA[#[payload.access_token]]]></os:value>
+		</os:store>
+				<os:store doc:name="Store Refresh Token" doc:id="30c202f3-3de7-44a6-8a1c-aa29099b21a9" key="Refresh_Token" objectStore="Object-Store-for-Refresh-Token">
+					<os:value ><![CDATA[#[payload.refreshToken]]]></os:value>
+				</os:store>
+				
+			</otherwise>
+		</choice>
+		<choice doc:name="CHECK IF Access Token is NOT EQUAL TO ZERO" doc:id="c43c8313-9ea8-4429-b213-965ba929389b">
+			<when expression='#[vars.access_TokenStore != "0"]'>
+				<ee:transform doc:name="Access Token By Variable" doc:id="f410e4bc-c3a7-4e13-9fe5-308c701b1c3d">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="access_token"><![CDATA[%dw 2.0
+output application/json
+---
+"Bearer " ++ vars.access_TokenStore]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Access Token By Paylod" doc:id="6abba906-a0b7-4ecb-891c-f0155ea140fd">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="access_token"><![CDATA[%dw 2.0
+output application/json
+---
+"Bearer " ++ payload.access_token]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="End Logger" doc:id="366d38a6-3f9f-4386-9d9e-69373e44b747" message='#["Exit from post-access-token-flow"]'/>
+	</flow>
+	<!-- <flow name="refresh-token-apiFlow" doc:id="a5bc280f-d82e-4477-8d98-f8980205712c" >
+		<os:retrieve doc:name="refresh_token" doc:id="1a2857fd-d74b-4c31-bb4a-aed6536fc3a6" key="refresh_token" objectStore="Object_store1" target="refresh_token">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="8e51d10b-f986-4bc4-919e-48bda8e75bf3" >
+			<when expression='#[vars.refresh_token != "0"]'>
+				<logger level="INFO" doc:name="Logger" doc:id="64a85b95-5d17-41c3-80de-16dba04d3d93" message="#[payload]"/>
+			</when>
+			<otherwise >
+				<http:request method="POST" doc:name="access_Token" doc:id="975cbc56-68cf-4f2b-8d3a-f2ae93ae3ecb" config-ref="HTTP_Request_configuration" path="${requesttoken.config.path}">
+			<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
+-&#45;&#45;
+{
+    "grant_type" : Mule::p('requesttoken.grant_type'),
+    "client_id" : Mule::p('requesttoken.client_id'),
+    "client_secret" : Mule::p('requesttoken.client_secret'),
+    "refresh_token" : Mule::p('requesttoken.refresh_token')
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/java
+-&#45;&#45;
+{
+	"Authorization" : "Basic OWU4NmU0NzktMjA0MC00NDZmLThjMGUtMmE4NTIwY2EwZTNiOjJwelZ3aks5ODN2U043RWVOUnRDOEt4Ug==",
+	"Accept" : "application/json",
+	"Content-Type" : "application/x-www-form-urlencoded"
+}]]]></http:headers>
+		</http:request>
+				<os:store doc:name="refresh_token" doc:id="39613e5a-1f40-4986-ba7f-ba9204c320dd" key="refresh_token" objectStore="Object_store1">
+					<os:value><![CDATA[#[payload.refresh_token]]]></os:value>
+				</os:store>
+			</otherwise>
+		</choice>
+		<choice doc:name="Choice" doc:id="4d4f411f-1995-4672-b3e1-f9be234976a9">
+			<when expression='#[vars.refresh_token != "0"]'>
+				<ee:transform doc:name="access_token" doc:id="aa84b0db-7b33-4e9c-a004-5e93b502996d">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="access_token"><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+vars.refresh_token]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="7934e216-6e60-4bfe-85a3-85e35c408dfb" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="access_token" doc:id="6b7dd80b-0030-4750-87af-4738d0e402fe">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="access_token"><![CDATA[%dw 2.0
+output application/json
+-&#45;&#45;
+payload.refresh_token]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="395e45e9-8654-4dcf-a0f8-a4ffb0e936d3" />
+			</otherwise>
+		</choice>
+	</flow> -->
+	<flow name="get-attendees-survey-flow" doc:id="0122b9f5-54e5-4458-bbc6-3f3a19570878">
+		<logger level="INFO" doc:name="Start Logger" doc:id="f8ef83dc-cc16-4de2-b865-83df83065130" message='#["Entered in get-attendees-survey-flow"]'/>
+		<set-variable value="#[vars.attendees.registrantKey]" doc:name="registrantKey" doc:id="462553d6-e6d4-44ed-a746-a7a698f70144" variableName="registrantKey" />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="343d0453-25b4-4aa6-860e-2bb0534492d3" >
+			<http:request method="GET" doc:name="Get Attendee Survey Details" doc:id="6a9d2720-33e2-4538-9ef9-03c325f0d68c" config-ref="HTTP-Request-Configuration-GotoWebinar-Api" path='#["/G2W/rest/v2/organizers/" ++ vars.organizerKeyByAccount ++ "/webinars/" ++ vars.current_Webinar_Key ++ "/sessions/" ++ vars.skey ++ "/attendees/" ++ payload ++ "/surveys"]' target="registrantSurvey">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<flow-ref doc:name="get-registrants-polls-flow" doc:id="1fb872c6-bbde-4937-a319-4247e20be66f" name="get-registrants-polls-flow"/>
+		<logger level="INFO" doc:name="End Logger" doc:id="32a88fbd-d317-4d33-b59d-17dba9451c96" message='#["Exit from get-attendees-survey-flow"]' />
+		</flow>
+	<flow name="get-registrants-polls-flow" doc:id="08a0d3de-a241-40c1-bec6-82d5ffb4658c" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="62d8e53c-c218-4f09-9f61-f11de4ea4a0b" message='#["Entered in get-registrants-polls-flow"]'/>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="2dea7757-e862-43b7-a695-fde106775b92" >
+			<http:request method="GET" doc:name="Get Registrants Details" doc:id="a1efff36-f65c-4f0e-8478-8c113c6d8f1c" path='#["/G2W/rest/v2/organizers/" ++ vars.organizerKeyByAccount ++ "/webinars/" ++ vars.current_Webinar_Key ++ "/registrants/" ++ payload]' target="getRegistrantsData" config-ref="HTTP-Request-Configuration-GotoWebinar-Api">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="a363078c-14f8-4849-aa34-92e379769048" >
+			<http:request method="GET" doc:name="Get Polls Attendee Details" doc:id="973d6b8e-7721-4592-bdd4-1afb0fcd3bee" config-ref="HTTP-Request-Configuration-GotoWebinar-Api" target="poll_Attendees" path='#["/G2W/rest/v2/organizers/" ++ vars.organizerKeyByAccount ++ "/webinars/" ++ vars.current_Webinar_Key ++ "/sessions/" ++ vars.skey ++"/attendees/" ++ payload ++ "/polls"]'>
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="b9127f2c-55ef-4f2d-b538-2c4cb19e46fc" >
+			<http:request method="GET" doc:name="Get Webinar Level Survey Details" doc:id="dfe66e26-c69e-4f9c-b667-4a110f8f3541" config-ref="HTTP-Request-Configuration-GotoWebinar-Api" path='#["/G2W/rest/v2/organizers/" ++ vars.organizerKeyByAccount ++ "/webinars/" ++ vars.current_Webinar_Key ++ "/sessions/" ++ vars.skey ++ "/surveys"]' target="webinar_level_survey">
+			<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : vars.access_token,
+	"Accept" : "application/json"
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="DW Storing Responses From Various API Calls" doc:id="949dbd93-6b2e-44ca-820a-02ac412cccd4">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="surveyVariable1"><![CDATA[%dw 2.0
+output application/json
+---
+vars.surveyVariable1 ++ vars.registrantSurvey ++ [ {
+    "question": "registrantKey",
+    "answer" : payload
+  }] ++ [{ "question" : "webinarKey",
+  	"answer" : vars.current_Webinar_Key
+  }]]]></ee:set-variable>
+				<ee:set-variable variableName="getRegistrant_Payload" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.getRegistrant_Payload ++ vars.getRegistrantsData ++ {
+    "question": "registrantKey",
+    "answer" : payload
+  } ++ { "question" : "webinarKey",
+  	"answer" : vars.current_Webinar_Key
+  }]]></ee:set-variable>
+				<ee:set-variable variableName="webinar_survey_responses" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.webinar_survey_responses ++ vars.webinar_level_survey ++ [ {
+    "question": "registrantKey",
+    "answer" : payload
+  }]]]></ee:set-variable>
+				<ee:set-variable variableName="polls_responses" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.polls_responses ++ vars.poll_Attendees ++ [{ "question" : "webinarKey",
+  	"answer" : vars.current_Webinar_Key
+  }]]]></ee:set-variable>
+				
+</ee:variables>
+			</ee:transform>
+		<logger level="INFO" doc:name="End Logger" doc:id="11a81826-ed90-4a1d-8264-391e4be3c8e1" message='#["Exit from get-registrants-polls-flow"]'/>
+	</flow>
+	<flow name="post-sfdc-system-api-flow" doc:id="7cba36fb-7099-4952-9796-2c370bfa0000" >
+		<logger level="INFO" doc:name="Start Logger" doc:id="438ae66e-0f80-44ab-b982-1ae540a50412" message='#["Entered in post-sfdc-system-api-flow"]'/>
+		<ee:transform doc:name="DW Transformations on Flow Variables" doc:id="e67c1971-c3a4-4f2e-b13e-6ac014217211">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable resource="surveyVariable.dwl" variableName="surveyVariable" />
+				<ee:set-variable resource="registrantMainPayload.dwl" variableName="registrantMainPayload" />
+				<ee:set-variable resource="survey_Main_Variable.dwl" variableName="survey_Main_Variable" />
+				
+</ee:variables>
+			</ee:transform>
+		<ee:transform doc:name="DW Variable For Survey Questions" doc:id="579c25a1-b6b4-4984-b28f-b8c00ee29476" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable resource="question_Answers.dwl" variableName="question_Answers" />
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="DW For Mapping SFDC Fileds" doc:id="a2db64d6-9c1b-4eef-9b92-c590f6a1eb3d">
+			<ee:message>
+			</ee:message>
+				<ee:variables>
+				<ee:set-variable resource="Contact_Object_MappingPayload.dwl" variableName="Contact_Object_MappingPayload" />
+				<ee:set-variable resource="Lead_Object_MappingPayload.dwl" variableName="Lead_Object_MappingPayload" />
+				
+</ee:variables>
+		</ee:transform>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="84169f9e-6c2f-4753-92a9-3cebe6cdbc5c" >
+			<http:request method="POST" doc:name="Calling SFDC System Api Lead Object Flow" doc:id="1ebca59e-b3ef-4289-a13e-78b28a2f7c35" config-ref="HTTP-Request-Configuration-For-System-Api" path="${request-sys-api.config.pathLeadObject}">
+				<http:body><![CDATA[#[vars.Lead_Object_MappingPayload]]]></http:body>
+			</http:request>
+		</until-successful>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="f6698484-5dbb-4775-b51b-fc403ff5540a" >
+			<http:request method="POST" doc:name="Calling SFDC System Api Contact Object Flow" doc:id="4a767cfd-ecfd-4e2d-adf8-04c4110a8609" config-ref="HTTP-Request-Configuration-For-System-Api" path="${request-sys-api.config.pathContactObject}">
+				<http:body><![CDATA[#[vars.Contact_Object_MappingPayload]]]></http:body>
+			</http:request>
+		</until-successful>
+		<logger level="INFO" doc:name="End Logger" doc:id="fb6c58c7-1fbd-4b0a-b946-72140ccfa88a" message='#["Exit from post-sfdc-system-api-flow"]'/>
+	
+	</flow>  	
+
+</mule>

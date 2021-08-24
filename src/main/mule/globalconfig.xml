@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+		<configuration-properties doc:name="Configuration properties" doc:id="d231e895-fbf8-4456-ad0e-25cfcf9d71cc" file="config/${env}.yaml" />
+    <http:request-config name="HTTP-Request-Configuration-GotoWebinar-Api" doc:name="HTTP Request configuration" doc:id="cbef2afd-eac7-485f-ba87-476e65b85f5a" >
+		<http:request-connection host="${requesttoken.config.host}" port="${requesttoken.config.port}" protocol="HTTPS"/>
+	</http:request-config>
+	<http:request-config name="HTTP-Request-Configuration-For-System-Api" doc:name="HTTP Request configuration" doc:id="6f3d19e9-64e9-4138-9ca2-d18f739f705c" >
+		<http:request-connection protocol="${request-sys-api.config.protocol}" host="${request-sys-api.config.host}" port="${request-sys-api.config.port}" connectionIdleTimeout="300000000"/>
+	</http:request-config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="1f0b1e2d-6f58-49c8-bf73-886634e8ddc2" >
+		<http:listener-connection host="${http.config.host}" port="${http.config.port}" />
+	</http:listener-config>
+	<os:object-store name="Object-Store-for-Access-Token" doc:name="Object store" doc:id="07330d7e-3381-4274-96d5-2b8cb165189d" maxEntries="1" entryTtl="3000" />
+	<os:object-store name="Object-Store-for-Refresh-Token" doc:name="Object store" doc:id="209c3b21-e886-4432-8b4d-23317b0cad10" maxEntries="1" entryTtl="29" entryTtlUnit="DAYS" />
+	<global-property doc:name="Global Property" doc:id="b56e02ab-2439-498e-8ab3-1ae9da31735d" name="env" value="dev" />
+	
+	
+</mule>

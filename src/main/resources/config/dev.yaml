@@ -1,0 +1,29 @@
+env: "dev"
+http:
+ config:
+   port: "8082"
+   host: "0.0.0.0"
+   path: "/goToWebinar"
+  
+requesttoken:
+  config:
+    protocol: "HTTPS"
+    host: "api.getgo.com"
+    port: "443"
+    path: "/oauth/v2/token"
+  grant_type: "refresh_token"
+  client_id: "9e86e479-2040-446f-8c0e-2a8520ca0e3b"
+  client_secret: "2pzVwjK983vSN7EeNRtC8KxR"
+  refresh_token: "eyJraWQiOiJvYXV0aHYyLmxtaS5jb20uMDIxOSIsImFsZyI6IlJTNTEyIn0.eyJzYyI6ImlkZW50aXR5OiBjb2xsYWI6IiwibHMiOiI0ZTFiODg1Zi01ODMyLTRjNzktODI2ZC1jNWM1MDFkODg0MTIiLCJvZ24iOiJwd2QiLCJhdWQiOiI5ZTg2ZTQ3OS0yMDQwLTQ0NmYtOGMwZS0yYTg1MjBjYTBlM2IiLCJzdWIiOiI0OTcxOTI5Nzc5MDYxMzU3ODgiLCJqdGkiOiJjNTM0OGYwYi0wYjMwLTQ2MTAtODgwZS04NzAzZDZiZTM4NTAiLCJleHAiOjE2MzIyOTk2MTcsImlhdCI6MTYyOTcwNzYxNywidHlwIjoiciJ9.gRR_5Piw3QDlIm8fUfYT8nCxIueYRR3BN_l1gogjG5jmSoNqmu8vOTEicU8WGpUqTtesvfHNC5S9FJeNQRrFH9NoqDwHe6sb3G5pTrD_K_v48KrMrId5A_WH9Y7RvqApCONtKGmHpRAUl7NKYcOuimTHJtQTcY7SSUf9bu8mS8lPJ5HUqHODs_AV1foI-0uFBZt6oKlvcMiCt6egV69FrrCSW4Pf7FH0WsygyDgc4EAuYJvNL0iY2CK1mra3klMRwKyW--qYRySZnM29ewfOOiki-0-633Q3yRigqq1TTJgIOc_XwyTfSKtB3-5oBfScubAWxNUsIA7m_2aE_RdEwg"
+
+keys:
+  account_key : "7506155193489814251"
+  
+
+request-sys-api: 
+  config:
+    protocol: "HTTP"
+    host: "localhost"
+    port: "8081"
+    pathLeadObject: "/api/attendee-lead-object"
+    pathContactObject: "/api/attendee-contact-object"
